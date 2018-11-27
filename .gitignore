@@ -1,0 +1,7 @@
+# Executables
+*.o
+Assign7
+*.gch
+
+# Mac indexer
+*.DS_Store
