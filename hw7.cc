@@ -6,6 +6,7 @@
  ***********************************************************************/
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <string.h>
 #include <vector>
@@ -13,6 +14,8 @@
 
 using std::cerr;
 using std::endl;
+using std::setw;
+using std::setfill;
 using std::vector;
 using std::ifstream;
 
@@ -20,42 +23,70 @@ const int BLOCK_SIZE = 512;
 const int MAX_ENTRIES = 12;
 const int HOW_OFTEN = 5;
 
-void printFAT(vector<Entry> *fileTable) {
+void printFAT(short *fileTable) {
   cerr << "Contents of the File Allocation Table" << endl;
 
-  for (int i = 0; i < 240; i++) {
-    if (i % 12 == 0) {
-      cerr << endl;
-      cerr << "#xxx-xxx\t";
+  int rangeStart = 0, rangeEnd = 11;
+  for (int i = 0; i < 240; ++i) {
+    if (i % MAX_ENTRIES == 0) {
+      if (i > 0) {
+        cerr << endl;
+        rangeStart += 12;
+        rangeEnd += 12;
+      }
+
+      cerr << "#" << setfill('0') << std::right <<  setw(3) << rangeStart << "-"
+            << std::right << setw(3) << rangeEnd;
     }
 
-    Entry thisEntry = fileTable->at(i);
+    cerr << setfill(' ') << setw(6) << fileTable[i];
+  }
+
+  cerr << endl << endl;
+}
+
+void printEntryList(vector<Entry> *entryList) {
+  for (int i = 0; i < 240; i++) {
+    Entry thisEntry = entryList->at(i);
     string thisCppName = thisEntry.getName();
     const char *thisName = thisCppName.c_str();
 
     int compareFlag = strcmp(thisName, "*** Null Block ***");
-    if (compareFlag == 0) {
-      cerr << "0\t";
-    } else {
-      cerr << thisEntry.getStartingBlock() << "\t";
+    if (compareFlag != 0) {
+      thisEntry.printInfo();
+      cerr << "Cluster(s) in use: ";
+      if (thisEntry.getSize() > 0) {
+        cerr << "(none)";
+      }
+
+      cerr << endl;
     }
 
-  }
+  } // end for loop
 
   cerr << endl;
 }
 
-
+/******************************************************************
+ *
+ *                Main Function
+ *
+ ******************************************************************/
 int main() {
-  cerr << "Beginning of the FAT simulation" << endl << endl;
+  cerr << "Beginning of the EntryList simulation" << endl << endl;
 
-  vector<Entry> FAT = vector<Entry>(240);
-  FAT[0] = Entry("..", 0, -1);
-  FAT[1] = Entry(".", 512, -1);
+  vector<Entry> EntryList = vector<Entry>(240);
+  short FAT[240];
+  EntryList[0] = Entry(".", 512, -1);
+  EntryList[1] = Entry("..", 0);
+
+  FAT[0] = -1;
+  FAT[1] = 0;
   int fileCount = 2;
 
   for (int i = 2; i < 240; i++) {
-    FAT[i] = Entry();
+    EntryList[i] = Entry();
+    FAT[i] = 0;
   }
 
   ifstream infile;
@@ -87,7 +118,7 @@ int main() {
         newEntry = Entry(mainFile, fileSize);
 
         fileCount++;
-        FAT[fileCount] = newEntry;
+        EntryList[fileCount] = newEntry;
 
         cerr << "Successfully added a new file, " << newEntry.getName()
               << ", of size " << newEntry.getSize() << endl;
@@ -118,7 +149,9 @@ int main() {
     } // end switch transactionType
 
     if (transactionCount % HOW_OFTEN == 0) {
-      printFAT(&FAT);
+      cerr << endl;
+      printEntryList(&EntryList);
+      printFAT(FAT);
     }
 
     if (isReadingFile) {

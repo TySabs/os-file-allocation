@@ -29,7 +29,7 @@ Entry::Entry() {
 Entry::Entry(string newName, int newSize) {
   name = newName;
   size = newSize;
-  startingBlock = 0;
+  startingBlock = -1;
 }
 
 Entry::Entry(string newName, int newSize, int newStart) {
