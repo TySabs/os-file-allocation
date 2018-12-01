@@ -19,8 +19,9 @@
       Entry();
       Entry(string, int);
       Entry(string, int, int);
-      void Hello();
+      void printInfo();
       string getName();
+      int getSize();
   };
 
 #endif

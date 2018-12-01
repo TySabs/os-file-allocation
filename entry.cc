@@ -6,10 +6,12 @@
  ***********************************************************************/
 
 #include <iostream>
+#include <iomanip>
 #include "entry.h"
 
 using std::cerr;
 using std::endl;
+using std::setw;
 
 /***********************************************************************
  * Entry constructor
@@ -35,10 +37,14 @@ Entry::Entry(string newName, int newSize, int newStart) {
   startingBlock = newStart;
 }
 
-void Entry::Hello() {
-  cerr << "Hello Entry Numbah " << name << endl;
+void Entry::printInfo() {
+  cerr << "File name: " << setw(18) << std::left << name << "\tFile Size: " << size << endl;
 }
 
 string Entry::getName() {
   return name;
+}
+
+int Entry::getSize() {
+  return size;
 }
