@@ -22,7 +22,8 @@ using std::setw;
  ***********************************************************************/
 Entry::Entry() {
   startingBlock = 0;
-  name = "cool-stuff";
+  size = 0;
+  name = "*** Null Block ***";
 }
 
 Entry::Entry(string newName, int newSize) {
@@ -38,7 +39,7 @@ Entry::Entry(string newName, int newSize, int newStart) {
 }
 
 void Entry::printInfo() {
-  cerr << "File name: " << setw(18) << std::left << name << "\tFile Size: " << size << endl;
+  cerr << "File name: " << setw(18) << std::left << name << "File Size: " << size << endl;
 }
 
 string Entry::getName() {
@@ -47,4 +48,12 @@ string Entry::getName() {
 
 int Entry::getSize() {
   return size;
+}
+
+void Entry::setSize(int newSize) {
+  size = newSize;
+}
+
+int Entry::getStartingBlock() {
+  return startingBlock;
 }

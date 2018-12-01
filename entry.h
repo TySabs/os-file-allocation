@@ -19,9 +19,11 @@
       Entry();
       Entry(string, int);
       Entry(string, int, int);
+      int getStartingBlock();
       void printInfo();
       string getName();
       int getSize();
+      void setSize(int);
   };
 
 #endif
