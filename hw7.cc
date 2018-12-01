@@ -6,10 +6,12 @@
  ***********************************************************************/
 
 #include <iostream>
+#include <fstream>
 #include "entry.h"
 
 using std::cerr;
 using std::endl;
+using std::ifstream;
 
 const int BLOCK_SIZE = 512;
 const int MAX_ENTRIES = 12;
@@ -33,6 +35,57 @@ int main() {
 
   string baz = FAT[2].getName();
   cerr << "Hello FAT2: " << baz << endl;
+
+  ifstream infile;
+  infile.open("./data7.txt");
+
+  if (!infile) {
+    cerr << "Unable to open file data7.txt" << endl;
+  }
+
+  char transactionType;
+  string mainFile, targetFile;
+  int fileSize;
+  bool isReadingFile = true;
+
+  infile >> transactionType;
+
+  while (isReadingFile && infile) {
+    switch (transactionType) {
+      case 'N':
+        cerr << "N Called" << endl;
+        infile >> mainFile;
+        infile >> fileSize;
+        break;
+      case 'M':
+        cerr << "M Called" << endl;
+        infile >> mainFile;
+        infile >> fileSize;
+        break;
+      case 'C':
+        cerr << "C Called" << endl;
+        infile >> mainFile;
+        infile >> targetFile;
+        break;
+      case 'R':
+        cerr << "R Called" << endl;
+        infile >> mainFile;
+        infile >> targetFile;
+        break;
+      case 'D':
+        cerr << "D Called" << endl;
+        infile >> mainFile;
+        break;
+      case '?':
+        cerr << "Ending Program" << endl;
+        isReadingFile = false;
+        break;
+    } // end switch transactionType
+
+    if (isReadingFile) {
+      infile >> transactionType;
+    }
+  } // end while isReadingFile
 
   return 0;
 };
