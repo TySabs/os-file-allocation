@@ -24,17 +24,34 @@ const int BLOCK_SIZE = 512;
 const int MAX_ENTRIES = 12;
 const int HOW_OFTEN = 5;
 
-bool searchForFile(vector<Entry> *entries, string targetString) {
+int findFreeBlock(short *fileTable) {
+  for (int i = 0; i < 240; i++) {
+    if (fileTable[i] == 0) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+int calculateClusterSize(int newSize) {
+  double clusterSize;
+  clusterSize = (double) newSize / BLOCK_SIZE;
+  clusterSize = ceil(clusterSize);
+  return (int) clusterSize;
+}
+
+int searchForFile(vector<Entry> *entries, string targetString) {
   vector<Entry>::iterator it;
   Entry *thisEntry;
 
   for (unsigned int i = 0; i < entries->size(); i++) {
     thisEntry = &entries->at(i);
     if (thisEntry->getName() == targetString) {
-      return true;
+      return (int) i;
     }
   }
-  return false;
+  return -1;
 }
 
 void printFAT(short *fileTable) {
@@ -59,7 +76,7 @@ void printFAT(short *fileTable) {
   cerr << endl << endl;
 }
 
-void printEntryList(vector<Entry> *entries) {
+void printEntryList(vector<Entry> *entries, int count, int totalSize) {
   for (int i = 0; i < 240; i++) {
     Entry thisEntry = entries->at(i);
     string thisCppName = thisEntry.getName();
@@ -69,8 +86,13 @@ void printEntryList(vector<Entry> *entries) {
     if (compareFlag != 0) {
       thisEntry.printInfo();
       cerr << "Cluster(s) in use: ";
-      if (thisEntry.getSize() > 0) {
+      if (thisEntry.getStartingBlock() == -1) {
         cerr << "(none)";
+      }
+
+      list<int>::iterator it;
+      for (it = thisEntry.clusters.begin(); it != thisEntry.clusters.end(); ++it) {
+        cerr << setw(4) << *it;
       }
 
       cerr << endl;
@@ -78,7 +100,7 @@ void printEntryList(vector<Entry> *entries) {
 
   } // end for loop
 
-  cerr << endl;
+  cerr << "Files: " << count << "\tTotalSize: " << totalSize << endl << endl;
 }
 
 /******************************************************************
@@ -91,7 +113,7 @@ int main() {
 
   vector<Entry> entryList = vector<Entry>(240);
   short FAT[240];
-  entryList[0] = Entry(".", 512, -1);
+  entryList[0] = Entry(".", 512, 0);
   entryList[1] = Entry("..", 0);
 
   FAT[0] = -1;
@@ -112,17 +134,24 @@ int main() {
 
   char transactionType;
   string mainFile, targetFile;
-  int fileSize;
+
+  int fileSize,
+      totalFileSize = 512,
+      transactionCount = 1,
+      matchedFile = -1,
+      nextBlock = -1,
+      oldBlock = -1,
+      clusterTotal = 1;
+
   bool isReadingFile = true;
 
   infile >> transactionType;
 
-  int transactionCount = 1;
 
-  while (isReadingFile && infile && transactionCount < 21) {
+  while (isReadingFile && infile && transactionCount < 11) {
     Entry newEntry;
     int clustersNeeded = 0, clustersAllocated = 0;
-    double clusterSize;
+    bool isFirstInsert = true;
 
     switch (transactionType) {
       case 'N':
@@ -131,18 +160,34 @@ int main() {
         infile >> mainFile;
         infile >> fileSize;
 
-        clusterSize = (double) fileSize / BLOCK_SIZE;
-        clusterSize = ceil(clusterSize);
-        clustersNeeded = (int) clusterSize;
-
-        newEntry = Entry(mainFile, fileSize);
-        for (int i = 0; i < 240; i++) {
-          if (clustersNeeded == clustersAllocated) {
-            break;
-          }
+        if (searchForFile(&entryList, mainFile) != -1) {
+          cerr << "Error! File already exists" << endl;
+          continue;
         }
 
+        clustersNeeded = calculateClusterSize(fileSize);
+
+        for (short i = 0; i < 240; i++) {
+          if (FAT[i] == 0) {
+            if (isFirstInsert) {
+              newEntry = Entry(mainFile, fileSize, i);
+              isFirstInsert = false;
+            }
+
+            newEntry.clusters.push_back(i);
+            FAT[i] = clusterTotal + 1;
+            clustersAllocated++;
+            clusterTotal++;
+
+            if (clustersNeeded == clustersAllocated) {
+              FAT[i] = -1;
+              break;
+            }
+          } // end if FAT entry is blank (zero)
+        } // end for loop
+
         fileCount++;
+        totalFileSize += fileSize;
         entryList[fileCount] = newEntry;
 
         cerr << "Successfully added a new file, " << newEntry.getName()
@@ -152,6 +197,51 @@ int main() {
         cerr << "Transaction: Modify a file" << endl;
         infile >> mainFile;
         infile >> fileSize;
+
+        matchedFile = searchForFile(&entryList, mainFile);
+
+        if (matchedFile == -1) {
+          cerr << "Error! Unable to match file: " << mainFile << endl;
+          break;
+        }
+
+        totalFileSize -= entryList[matchedFile].getSize();
+        totalFileSize += fileSize;
+
+        nextBlock = findFreeBlock(FAT);
+        newEntry = Entry(mainFile, fileSize, nextBlock);
+
+        if (nextBlock == 0) {
+          cerr << "Error! Unable to find free block" << endl;
+          break;
+        }
+
+        clustersNeeded = calculateClusterSize(fileSize);
+
+        while (clustersAllocated != clustersNeeded) {
+          if (FAT[nextBlock] == 0) {
+            newEntry.clusters.push_back(nextBlock);
+            FAT[nextBlock] = clusterTotal;
+            clustersAllocated++;
+            clusterTotal++;
+          }
+
+          if (clustersAllocated == clustersNeeded) {
+            FAT[nextBlock] = -1;
+          }
+
+          nextBlock++;
+        } // end while loop
+
+        while (entryList[matchedFile].clusters.size() > 0) {
+          oldBlock = entryList[matchedFile].clusters.back();
+          FAT[oldBlock] = 0;
+          entryList[matchedFile].clusters.pop_back();
+        }
+
+        entryList[matchedFile] = newEntry;
+
+        cerr << "Successfully modified a file, " << mainFile << endl;
         break;
       case 'C':
         cerr << "Transaction: Copy a file" << endl;
@@ -175,7 +265,7 @@ int main() {
 
     if (transactionCount % HOW_OFTEN == 0) {
       cerr << endl;
-      printEntryList(&entryList);
+      printEntryList(&entryList, fileCount, totalFileSize);
       printFAT(FAT);
     }
 

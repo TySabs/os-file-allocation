@@ -8,6 +8,9 @@
    * Assignment 7 - File Allocation
    ***********************************************************************/
    #include <string>
+   #include <list>
+
+   using std::list;
    using std::string;
 
   class Entry {
@@ -16,6 +19,8 @@
       int size;
       int startingBlock;
     public:
+      list<int> clusters;
+
       Entry();
       Entry(string, int);
       Entry(string, int, int);
