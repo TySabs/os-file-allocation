@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <fstream>
 #include <string.h>
+#include <math.h>
 #include <vector>
 #include "entry.h"
 
@@ -22,6 +23,19 @@ using std::ifstream;
 const int BLOCK_SIZE = 512;
 const int MAX_ENTRIES = 12;
 const int HOW_OFTEN = 5;
+
+bool searchForFile(vector<Entry> *entries, string targetString) {
+  vector<Entry>::iterator it;
+  Entry *thisEntry;
+
+  for (unsigned int i = 0; i < entries->size(); i++) {
+    thisEntry = &entries->at(i);
+    if (thisEntry->getName() == targetString) {
+      return true;
+    }
+  }
+  return false;
+}
 
 void printFAT(short *fileTable) {
   cerr << "Contents of the File Allocation Table" << endl;
@@ -45,9 +59,9 @@ void printFAT(short *fileTable) {
   cerr << endl << endl;
 }
 
-void printEntryList(vector<Entry> *entryList) {
+void printEntryList(vector<Entry> *entries) {
   for (int i = 0; i < 240; i++) {
-    Entry thisEntry = entryList->at(i);
+    Entry thisEntry = entries->at(i);
     string thisCppName = thisEntry.getName();
     const char *thisName = thisCppName.c_str();
 
@@ -75,17 +89,17 @@ void printEntryList(vector<Entry> *entryList) {
 int main() {
   cerr << "Beginning of the EntryList simulation" << endl << endl;
 
-  vector<Entry> EntryList = vector<Entry>(240);
+  vector<Entry> entryList = vector<Entry>(240);
   short FAT[240];
-  EntryList[0] = Entry(".", 512, -1);
-  EntryList[1] = Entry("..", 0);
+  entryList[0] = Entry(".", 512, -1);
+  entryList[1] = Entry("..", 0);
 
   FAT[0] = -1;
   FAT[1] = 0;
   int fileCount = 2;
 
   for (int i = 2; i < 240; i++) {
-    EntryList[i] = Entry();
+    entryList[i] = Entry();
     FAT[i] = 0;
   }
 
@@ -107,6 +121,8 @@ int main() {
 
   while (isReadingFile && infile && transactionCount < 21) {
     Entry newEntry;
+    int clustersNeeded = 0, clustersAllocated = 0;
+    double clusterSize;
 
     switch (transactionType) {
       case 'N':
@@ -115,10 +131,19 @@ int main() {
         infile >> mainFile;
         infile >> fileSize;
 
+        clusterSize = (double) fileSize / BLOCK_SIZE;
+        clusterSize = ceil(clusterSize);
+        clustersNeeded = (int) clusterSize;
+
         newEntry = Entry(mainFile, fileSize);
+        for (int i = 0; i < 240; i++) {
+          if (clustersNeeded == clustersAllocated) {
+            break;
+          }
+        }
 
         fileCount++;
-        EntryList[fileCount] = newEntry;
+        entryList[fileCount] = newEntry;
 
         cerr << "Successfully added a new file, " << newEntry.getName()
               << ", of size " << newEntry.getSize() << endl;
@@ -150,7 +175,7 @@ int main() {
 
     if (transactionCount % HOW_OFTEN == 0) {
       cerr << endl;
-      printEntryList(&EntryList);
+      printEntryList(&entryList);
       printFAT(FAT);
     }
 
