@@ -29,6 +29,7 @@
       string getName();
       int getSize();
       void setSize(int);
+      void setName(string);
   };
 
 #endif
